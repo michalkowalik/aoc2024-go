@@ -8,10 +8,8 @@ import (
 	"strings"
 )
 
-type StorageMap struct {
-	MapArray [][]MapObject
-}
-
+var storage [][]MapObject
+var setBounces = false
 var storageSize = 0
 
 //goland:noinspection GoDfaNilDereference
@@ -30,8 +28,7 @@ func main() {
 
 	r := bufio.NewReader(f)
 
-	storage := StorageMap{}
-	storage.MapArray = make([][]MapObject, 0)
+	storage = make([][]MapObject, 0)
 
 	lineIndex := 0
 	for {
@@ -53,14 +50,19 @@ func main() {
 			}
 			columnIndex++
 		}
-		storage.MapArray = append(storage.MapArray, row)
+		storage = append(storage, row)
 		lineIndex++
 	}
-	storageSize = len(storage.MapArray)
+	storageSize = len(storage)
 	run(guardian, storage)
+
+	// complete path will be needed for the part 2
+	// completePath := guardian.Path()
+
+	part2(*guardian)
 }
 
-func run(guardian *Guardian, storage StorageMap) {
+func run(guardian *Guardian, storage [][]MapObject) {
 	fmt.Printf("Guardian starts at %d, %d, direction %d\n",
 		guardian.position.x, guardian.position.y, guardian.direction)
 
@@ -75,7 +77,8 @@ func run(guardian *Guardian, storage StorageMap) {
 	printCompletedPath(storage, guardian)
 }
 
-func printCompletedPath(storageMap StorageMap, guardian *Guardian) {
+// printCompletedPath visualizes the completed path of the guardian on the storage map including obstacles and prints it.
+func printCompletedPath(storageMap [][]MapObject, guardian *Guardian) {
 	stringMap := make([][]string, storageSize)
 
 	for y := 0; y < storageSize; y++ {
@@ -92,7 +95,7 @@ func printCompletedPath(storageMap StorageMap, guardian *Guardian) {
 
 	for y := 0; y < storageSize; y++ {
 		for x := 0; x < storageSize; x++ {
-			if _, ok := (storageMap.MapArray[y][x]).(*Obstacle); ok {
+			if _, ok := (storageMap[y][x]).(*Obstacle); ok {
 				stringMap[y][x] = "#"
 			}
 		}
@@ -113,4 +116,52 @@ func removeDuplicatesFromPath(path []Position) []Position {
 		}
 	}
 	return dedupPath
+}
+
+// part 2
+func part2(guardian Guardian) {
+	startingPosition := guardian.Path()[0]
+
+	loopCounter := 0
+
+	dedupedPath := removeDuplicatesFromPath(guardian.Path())
+	for i := 1; i < len(dedupedPath); i++ {
+		if runGuardianWithObstacle(dedupedPath[i], startingPosition) {
+			loopCounter++
+		}
+	}
+	fmt.Printf("\nPART2: Number of loops: %d\n", loopCounter)
+}
+
+func copyMapObjects(original [][]MapObject) [][]MapObject {
+	copied := make([][]MapObject, len(original))
+
+	for i := range original {
+		copied[i] = make([]MapObject, len(original[i]))
+		copy(copied[i], original[i]) // Use copy for inner slices
+
+		// remove any information about bounces
+		for j, obstacle := range copied[i] {
+			if _, ok := obstacle.(*Obstacle); ok {
+				copied[i][j] = NewObstacle()
+			}
+		}
+	}
+	return copied
+}
+
+// return true if adding obstacle caused the loop
+func runGuardianWithObstacle(obstacle Position, startingPosition Position) bool {
+	copiedStorage := copyMapObjects(storage)
+	setBounces = true
+	guardian := NewGuardian(startingPosition.x, startingPosition.y, 0)
+	copiedStorage[obstacle.y][obstacle.x] = NewObstacle()
+
+	for !guardian.isLeavingStorage() {
+		guardian.Move(copiedStorage)
+		if guardian.inTheLoop {
+			return true
+		}
+	}
+	return false
 }

@@ -4,16 +4,16 @@ type Position struct {
 	x, y int
 }
 
-var moveCount int
-
 type Guardian struct {
 	position  Position
 	direction int
 	path      []Position // save the path the guardian follows
+	inTheLoop bool
 }
 
 func NewGuardian(x int, y int, direction int) *Guardian {
 	guardian := new(Guardian)
+	guardian.inTheLoop = false
 	guardian.position.x = x
 	guardian.position.y = y
 	guardian.direction = direction
@@ -21,7 +21,7 @@ func NewGuardian(x int, y int, direction int) *Guardian {
 	return guardian
 }
 
-func (w *Guardian) Move(storage StorageMap) {
+func (w *Guardian) Move(storage [][]MapObject) {
 	nextPosition := Position{w.position.x, w.position.y}
 	// next position:
 	switch w.direction {
@@ -35,12 +35,20 @@ func (w *Guardian) Move(storage StorageMap) {
 		nextPosition.x--
 	}
 
-	if _, ok := (storage.MapArray[nextPosition.y][nextPosition.x]).(*Obstacle); ok {
+	if _, ok := (storage[nextPosition.y][nextPosition.x]).(*Obstacle); ok {
+		// we've bounced from the obstacle:
+		inTheLoop := storage[nextPosition.y][nextPosition.x].Bounce(w.direction)
+
+		if inTheLoop {
+			w.inTheLoop = true
+			return
+		}
+
+		// and we change the direction:
 		w.direction = (w.direction + 1) % 4
 	} else {
 		w.position = nextPosition
 		w.path = append(w.path, w.position)
-		moveCount++
 	}
 }
 
