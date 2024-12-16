@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 )
 
 var storage [][]MapObject
@@ -15,7 +16,7 @@ var storageSize = 0
 //goland:noinspection GoDfaNilDereference
 func main() {
 	var guardian *Guardian
-	f, err := os.Open("input-day6.txt")
+	f, err := os.Open("input-test.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -125,15 +126,24 @@ func part2(guardian Guardian) {
 	loopCounter := 0
 
 	dedupedPath := removeDuplicatesFromPath(guardian.Path())
+	ch := make(chan bool, len(dedupedPath))
+
 	for i := 1; i < len(dedupedPath); i++ {
-		if runGuardianWithObstacle(dedupedPath[i], startingPosition) {
+		go runGuardianWithObstacle(dedupedPath[i], startingPosition, ch)
+	}
+
+	for i := 0; i < len(dedupedPath)-1; i++ {
+		result := <-ch
+		if result {
 			loopCounter++
 		}
 	}
+
 	fmt.Printf("\nPART2: Number of loops: %d\n", loopCounter)
 }
 
 func copyMapObjects(original [][]MapObject) [][]MapObject {
+	fmt.Printf("copying map objects\n")
 	copied := make([][]MapObject, len(original))
 
 	for i := range original {
@@ -151,8 +161,12 @@ func copyMapObjects(original [][]MapObject) [][]MapObject {
 }
 
 // return true if adding obstacle caused the loop
-func runGuardianWithObstacle(obstacle Position, startingPosition Position) bool {
+func runGuardianWithObstacle(obstacle Position, startingPosition Position, ch chan bool) {
+	var storageLock sync.Mutex
+	storageLock.Lock()
 	copiedStorage := copyMapObjects(storage)
+	storageLock.Unlock()
+
 	setBounces = true
 	guardian := NewGuardian(startingPosition.x, startingPosition.y, 0)
 	copiedStorage[obstacle.y][obstacle.x] = NewObstacle()
@@ -160,8 +174,10 @@ func runGuardianWithObstacle(obstacle Position, startingPosition Position) bool 
 	for !guardian.isLeavingStorage() {
 		guardian.Move(copiedStorage)
 		if guardian.inTheLoop {
-			return true
+			fmt.Printf("loop detected at %d, %d\n", obstacle.x, obstacle.y)
+			printCompletedPath(copiedStorage, guardian)
+			ch <- true
 		}
 	}
-	return false
+	ch <- false
 }
