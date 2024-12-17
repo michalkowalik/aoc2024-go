@@ -58,8 +58,6 @@ func main() {
 	run(guardian, storage)
 
 	// complete path will be needed for the part 2
-	// completePath := guardian.Path()
-
 	part2(*guardian)
 }
 
@@ -125,14 +123,14 @@ func part2(guardian Guardian) {
 
 	loopCounter := 0
 
-	dedupedPath := removeDuplicatesFromPath(guardian.Path())
+	dedupedPath := removeDuplicatesFromPath(guardian.Path())[1:]
 	ch := make(chan bool, len(dedupedPath))
 
 	for i := 1; i < len(dedupedPath); i++ {
 		go runGuardianWithObstacle(dedupedPath[i], startingPosition, ch)
 	}
 
-	for i := 0; i < len(dedupedPath)-1; i++ {
+	for i := 0; i < len(dedupedPath); i++ {
 		result := <-ch
 		if result {
 			loopCounter++

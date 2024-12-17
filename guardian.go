@@ -52,10 +52,6 @@ func (w *Guardian) Move(storage [][]MapObject) {
 	}
 }
 
-func (w *Guardian) ChangeDirection() {
-
-}
-
 func (w *Guardian) Path() []Position {
 	return w.path
 }
