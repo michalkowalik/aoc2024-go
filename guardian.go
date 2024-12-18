@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"strings"
+)
+
 type Position struct {
 	x, y int
 }
@@ -52,8 +57,17 @@ func (w *Guardian) Move(storage [][]MapObject) {
 	}
 }
 
+// Path returns the de-duplicated list of positions visited by the Guardian in order.
 func (w *Guardian) Path() []Position {
-	return w.path
+	allKeys := make(map[Position]bool)
+	dedupPath := make([]Position, 0)
+	for _, pos := range w.path {
+		if _, v := allKeys[pos]; !v {
+			allKeys[pos] = true
+			dedupPath = append(dedupPath, pos)
+		}
+	}
+	return dedupPath
 }
 
 func (w *Guardian) isLeavingStorage() bool {
@@ -70,4 +84,33 @@ func (w *Guardian) isLeavingStorage() bool {
 		return true
 	}
 	return false
+}
+
+// PrintCompletedPath visualizes the completed path of the guardian on the storage map including obstacles and prints it.
+func (w *Guardian) PrintCompletedPath(storageMap [][]MapObject) {
+	stringMap := make([][]string, storageSize)
+
+	for y := 0; y < storageSize; y++ {
+		row := make([]string, storageSize)
+		for x := 0; x < storageSize; x++ {
+			row[x] = "."
+		}
+		stringMap[y] = row
+	}
+
+	for _, position := range w.Path() {
+		stringMap[position.y][position.x] = "X"
+	}
+
+	for y := 0; y < storageSize; y++ {
+		for x := 0; x < storageSize; x++ {
+			if _, ok := (storageMap[y][x]).(*Obstacle); ok {
+				stringMap[y][x] = "#"
+			}
+		}
+	}
+
+	for _, row := range stringMap {
+		fmt.Printf("%s\n", strings.Join(row, ""))
+	}
 }
