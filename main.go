@@ -9,6 +9,7 @@ import (
 )
 
 var storageSize = 0
+var storage StorageMap
 
 //goland:noinspection GoDfaNilDereference
 func main() {
@@ -25,7 +26,7 @@ func main() {
 	}(f)
 
 	r := bufio.NewReader(f)
-	storage := StorageMap{}
+	storage = StorageMap{}
 	storage.storageMap = make([][]MapObject, 0)
 
 	lineIndex := 0
@@ -55,7 +56,7 @@ func main() {
 	run(guardian, storage.storageMap)
 
 	// complete path will be needed for the part 2
-	part2(*guardian, storage)
+	part2(*guardian)
 }
 
 func run(guardian *Guardian, storage [][]MapObject) {
@@ -70,18 +71,18 @@ func run(guardian *Guardian, storage [][]MapObject) {
 	fmt.Printf("Guardian's path is %d steps long\n",
 		len(guardian.Path()))
 
-	guardian.PrintCompletedPath(storage)
+	//guardian.PrintCompletedPath(storage)
 }
 
 // part 2
-func part2(guardian Guardian, storage StorageMap) {
+func part2(guardian Guardian) {
 	startingPosition := guardian.Path()[0]
 	loopCounter := 0
 	path := guardian.Path()[1:]
 	ch := make(chan bool)
 
 	for _, pos := range path {
-		go runGuardianWithObstacle(storage, pos, startingPosition, ch)
+		go runGuardianWithObstacle(pos, startingPosition, ch)
 	}
 
 	for range path {
@@ -94,7 +95,7 @@ func part2(guardian Guardian, storage StorageMap) {
 }
 
 // return true if adding obstacle caused the loop
-func runGuardianWithObstacle(storage StorageMap, obstacle Position, startingPosition Position, ch chan bool) {
+func runGuardianWithObstacle(obstacle Position, startingPosition Position, ch chan bool) {
 	copiedStorage := storage.CopyStorageMap()
 
 	guardian := NewGuardian(startingPosition.x, startingPosition.y, 0)
@@ -105,7 +106,7 @@ func runGuardianWithObstacle(storage StorageMap, obstacle Position, startingPosi
 		if guardian.inTheLoop {
 
 			// why is that needed - where is the problem?
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(250 * time.Millisecond)
 			ch <- true
 		}
 	}
