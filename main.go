@@ -7,16 +7,20 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
-var storage [][]MapObject
-var setBounces = false
+type StorageMap struct {
+	sync.RWMutex
+	storageMap [][]MapObject
+}
+
 var storageSize = 0
 
 //goland:noinspection GoDfaNilDereference
 func main() {
 	var guardian *Guardian
-	f, err := os.Open("input-test.txt")
+	f, err := os.Open("input-day6.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -28,8 +32,8 @@ func main() {
 	}(f)
 
 	r := bufio.NewReader(f)
-
-	storage = make([][]MapObject, 0)
+	storage := StorageMap{}
+	storage.storageMap = make([][]MapObject, 0)
 
 	lineIndex := 0
 	for {
@@ -51,14 +55,14 @@ func main() {
 			}
 			columnIndex++
 		}
-		storage = append(storage, row)
+		storage.storageMap = append(storage.storageMap, row)
 		lineIndex++
 	}
-	storageSize = len(storage)
-	run(guardian, storage)
+	storageSize = len(storage.storageMap)
+	run(guardian, storage.storageMap)
 
 	// complete path will be needed for the part 2
-	part2(*guardian)
+	part2(*guardian, storage)
 }
 
 func run(guardian *Guardian, storage [][]MapObject) {
@@ -118,19 +122,19 @@ func removeDuplicatesFromPath(path []Position) []Position {
 }
 
 // part 2
-func part2(guardian Guardian) {
+func part2(guardian Guardian, storage StorageMap) {
 	startingPosition := guardian.Path()[0]
 
 	loopCounter := 0
 
 	dedupedPath := removeDuplicatesFromPath(guardian.Path())[1:]
-	ch := make(chan bool, len(dedupedPath))
+	ch := make(chan bool)
 
-	for i := 1; i < len(dedupedPath); i++ {
-		go runGuardianWithObstacle(dedupedPath[i], startingPosition, ch)
+	for _, pos := range dedupedPath {
+		go runGuardianWithObstacle(storage, pos, startingPosition, ch)
 	}
 
-	for i := 0; i < len(dedupedPath); i++ {
+	for range dedupedPath {
 		result := <-ch
 		if result {
 			loopCounter++
@@ -140,13 +144,13 @@ func part2(guardian Guardian) {
 	fmt.Printf("\nPART2: Number of loops: %d\n", loopCounter)
 }
 
-func copyMapObjects(original [][]MapObject) [][]MapObject {
-	fmt.Printf("copying map objects\n")
-	copied := make([][]MapObject, len(original))
+func copyMapObjects(storage StorageMap) [][]MapObject {
+	copied := make([][]MapObject, len(storage.storageMap))
+	storage.RLock()
+	defer storage.RUnlock()
 
-	for i := range original {
-		copied[i] = make([]MapObject, len(original[i]))
-		copy(copied[i], original[i]) // Use copy for inner slices
+	for i := range storage.storageMap {
+		copied[i] = append([]MapObject{}, storage.storageMap[i]...)
 
 		// remove any information about bounces
 		for j, obstacle := range copied[i] {
@@ -159,21 +163,18 @@ func copyMapObjects(original [][]MapObject) [][]MapObject {
 }
 
 // return true if adding obstacle caused the loop
-func runGuardianWithObstacle(obstacle Position, startingPosition Position, ch chan bool) {
-	var storageLock sync.Mutex
-	storageLock.Lock()
+func runGuardianWithObstacle(storage StorageMap, obstacle Position, startingPosition Position, ch chan bool) {
 	copiedStorage := copyMapObjects(storage)
-	storageLock.Unlock()
 
-	setBounces = true
 	guardian := NewGuardian(startingPosition.x, startingPosition.y, 0)
 	copiedStorage[obstacle.y][obstacle.x] = NewObstacle()
 
 	for !guardian.isLeavingStorage() {
 		guardian.Move(copiedStorage)
 		if guardian.inTheLoop {
-			fmt.Printf("loop detected at %d, %d\n", obstacle.x, obstacle.y)
-			printCompletedPath(copiedStorage, guardian)
+
+			// why is that needed - where is the problem?
+			time.Sleep(1000 * time.Millisecond)
 			ch <- true
 		}
 	}

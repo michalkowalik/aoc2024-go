@@ -26,9 +26,6 @@ func NewObstacle() *Obstacle {
 // we're in the loop.
 // return true if loop detected, false otherwise.
 func (o *Obstacle) Bounce(direction int) bool {
-	if !setBounces {
-		return false
-	}
 	if _, v := o.bounces[direction]; !v {
 		o.bounces[direction] = true
 		return false
